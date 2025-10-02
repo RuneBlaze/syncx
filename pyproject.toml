@@ -1,0 +1,29 @@
+[build-system]
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "syncx"
+description = "Rust-powered concurrency primitives for Python: atomics, parking_lot locks, and more"
+requires-python = ">=3.8"
+dynamic = ["version"]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Utilities",
+    "License :: OSI Approved :: MIT License",
+    "Typing :: Typed",
+]
+authors = [
+    {name = "RuneBlaze", email = "liubaqiao@gmail.com"},
+]
+
+[project.urls]
+"Homepage" = "https://github.com/RuneBlaze/syncx"
+"Bug Tracker" = "https://github.com/RuneBlaze/syncx/issues"
+"Documentation" = "https://github.com/RuneBlaze/syncx/blob/main/DOCS.md"
+
+[tool.maturin]
+python-source = "syncx"

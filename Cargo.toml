@@ -1,0 +1,20 @@
+[package]
+name = "syncx"
+version = "0.0.1-alpha.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "syncx"
+crate-type = ["cdylib"]
+
+[dependencies]
+num = "0.4.3"
+portable-atomic = { version = "1.9.0", features = ["std", "float"] }
+pyo3 = { version = "0.26", default-features = false, features = ["extension-module", "macros"] }
+parking_lot = { version = "0.12" }
+dashmap = "6"
+
+[features]
+default = ["gil-abi3"]
+gil-abi3 = ["pyo3/abi3", "pyo3/abi3-py38"]
