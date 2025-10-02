@@ -5,11 +5,7 @@ use crate::submodule;
 use dashmap::DashMap;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyAnyMethods};
-
-fn none_object(py: Python<'_>) -> Py<PyAny> {
-    py.None()
-}
+use pyo3::types::{PyAny, PyAnyMethods, PyDict, PyDictMethods, PyTuple, PyType};
 
 pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(py, "dict")?;
@@ -143,9 +139,7 @@ impl ConcurrentDict {
         if let Some(entry) = self.inner.get(&py_key) {
             Ok(entry.value().clone_ref(py))
         } else {
-            Ok(default
-                .map(Bound::unbind)
-                .unwrap_or_else(|| none_object(py)))
+            Ok(default.map(Bound::unbind).unwrap_or_else(|| py.None()))
         }
     }
 
@@ -161,9 +155,7 @@ impl ConcurrentDict {
         Ok(match entry {
             dashmap::mapref::entry::Entry::Occupied(occupied) => occupied.get().clone_ref(py),
             dashmap::mapref::entry::Entry::Vacant(vacant) => {
-                let value = default
-                    .map(Bound::unbind)
-                    .unwrap_or_else(|| none_object(py));
+                let value = default.map(Bound::unbind).unwrap_or_else(|| py.None());
                 vacant.insert(value.clone_ref(py));
                 value
             }
@@ -188,5 +180,25 @@ impl ConcurrentDict {
 
     fn clear(&self) {
         self.inner.clear();
+    }
+
+    fn __getstate__(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let snapshot = PyDict::new(py);
+        for entry in self.inner.iter() {
+            let key = entry.key().object.clone_ref(py);
+            let value = entry.value().clone_ref(py);
+            snapshot.set_item(key, value)?;
+        }
+        Ok(snapshot.unbind())
+    }
+
+    fn __setstate__(&mut self, state: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.inner.clear();
+        for (key, value) in state.iter() {
+            let py_key = Self::ensure_hashable(&key)?;
+            let value_object = value.clone().unbind();
+            self.inner.insert(py_key, value_object);
+        }
+        Ok(())
     }
 }

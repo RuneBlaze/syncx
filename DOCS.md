@@ -20,6 +20,7 @@ pip install syncx
 
 - `syncx.atomic` provides `AtomicInt`, `AtomicBool`, and `AtomicFloat`. These mirror the Python-friendly surface from the original atomicx crate and always use `SeqCst` ordering for predictability across interpreters.
 - `syncx.locks` wraps `parking_lot` mutexes, reentrant mutexes, and read-write locks. Acquire methods follow Python's `threading` naming (`acquire`, `release`) while still returning guard objects for explicit scoping. Locks support `with lock:` usage via context manager integration.
+- `syncx.queue` exposes a `Queue` backed by `flume`. It matches the core `queue.Queue` API, including bounded queues via `maxsize`, blocking `put`/`get` with optional timeouts, and the non-blocking helpers.
 
 ## Usage snippets
 
@@ -58,6 +59,23 @@ rlock = RLock()
 with rlock:
     with rlock:
         ...
+```
+
+### Flume queue
+
+```python
+from syncx import queue
+
+q = queue.Queue(maxsize=2)
+q.put("first")
+q.put_nowait("second")
+
+try:
+    q.put_nowait("third")
+except queue.Full:
+    q.get()
+
+assert q.get() == "first"
 ```
 
 ## Future work

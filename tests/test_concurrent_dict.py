@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import pickle
 
 import pytest
 
@@ -65,6 +66,25 @@ def test_threaded_updates_are_visible() -> None:
             fut.result()
 
     assert len(cd) == workers * chunk
+
+
+def test_pickle_roundtrip() -> None:
+    cd = ConcurrentDict()
+    cd["alpha"] = 1
+    cd["beta"] = 2
+
+    payload = pickle.dumps(cd)
+    restored = pickle.loads(payload)
+
+    assert isinstance(restored, ConcurrentDict)
+    assert restored["alpha"] == 1
+    assert restored["beta"] == 2
+
+    cd["alpha"] = 10
+    assert restored["alpha"] == 1
+
+    restored["beta"] = 20
+    assert cd["beta"] == 2
 
 
 def test_unhashable_key_raises() -> None:
