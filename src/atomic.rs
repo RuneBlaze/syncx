@@ -1,6 +1,7 @@
+use crate::submodule;
 use portable_atomic::AtomicF64;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::PyAny;
 use std::sync::atomic::{AtomicI64, Ordering::SeqCst};
 
 pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -8,10 +9,7 @@ pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<AtomicInt>()?;
     module.add_class::<AtomicBool>()?;
     module.add_class::<AtomicFloat>()?;
-    parent.add_submodule(&module)?;
-    // Ensure Python can import `syncx.atomic` by registering the submodule.
-    let sys_modules: Bound<'_, PyDict> = py.import("sys")?.getattr("modules")?.downcast_into()?;
-    sys_modules.set_item("syncx.atomic", &module)?;
+    submodule::register_submodule(py, parent, &module, "syncx.atomic")?;
     Ok(())
 }
 

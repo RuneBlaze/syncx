@@ -9,6 +9,7 @@ The Rust core lives in `src/`, where `lib.rs` registers the Python module and is
 - `PYTHON_GIL=0 maturin build --release --no-default-features`: emit free-threaded (`cp3xx`t) wheels using the same source; requires a free-threaded interpreter.
 - `pytest tests -q`: execute the Python interoperability suite; use `-k` to target specific atom types during triage.
 - `cargo fmt` / `cargo clippy --all-targets -- -D warnings`: enforce Rust formatting and lint the CDylib before opening a PR.
+- `rg vibes/pyo3-guide`: grab the vendored PyO3 guide; feel free to search it when confirming API patterns.
 
 ## Coding Style & Naming Conventions
 Rust follows edition 2021 defaults: 4-space indentation, `snake_case` for functions, and `CamelCase` for PyO3 classes. Prefer explicit `SeqCst` ordering for new atomic operations to match existing semantics. Keep docstrings and Python examples concise and in imperative mood. When updating APIs, mirror signatures and docstrings in the `syncx/*.pyi` stubs and ensure public methods stay annotated.

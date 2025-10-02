@@ -1,6 +1,7 @@
 mod atomic;
 mod dict;
 mod locks;
+mod submodule;
 
 use pyo3::prelude::*;
 

@@ -1,9 +1,10 @@
+use crate::submodule;
 use parking_lot::lock_api::{
     RawMutex as RawMutexTrait, RawRwLock as RawRwLockTrait, RawRwLockDowngrade,
 };
 use parking_lot::{RawMutex, RawRwLock, ReentrantMutex, ReentrantMutexGuard};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::PyAny;
 use pyo3::Bound;
 use std::mem::transmute;
 use std::sync::Arc;
@@ -17,10 +18,7 @@ pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<RWLock>()?;
     module.add_class::<ReadGuard>()?;
     module.add_class::<WriteGuard>()?;
-    parent.add_submodule(&module)?;
-    // Ensure Python can import `syncx.locks` by registering the submodule.
-    let sys_modules: Bound<'_, PyDict> = py.import("sys")?.getattr("modules")?.downcast_into()?;
-    sys_modules.set_item("syncx.locks", &module)?;
+    submodule::register_submodule(py, parent, &module, "syncx.locks")?;
     Ok(())
 }
 
