@@ -5,7 +5,7 @@ use crate::submodule;
 use dashmap::DashMap;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyAnyMethods, PyDict, PyDictMethods, PyTuple, PyType};
+use pyo3::types::{PyAny, PyAnyMethods, PyDict, PyDictMethods};
 
 pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(py, "dict")?;
