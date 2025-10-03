@@ -1,0 +1,340 @@
+:root {
+  --color-bg: #f9fafb;
+  --color-text: #1b1f24;
+  --color-muted: #626c7a;
+  --color-heading: #4355b9;
+  --color-border: #e2e6ea;
+  --color-code-bg: #efefea;
+  --color-warning: #c27e51;
+  --color-note: #4355b9;
+  --shadow-soft: 0 12px 30px rgba(17, 24, 39, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Inter", "Helvetica Neue", Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  text-rendering: optimizeLegibility;
+}
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-heading);
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: top 0.2s ease;
+  z-index: 1000;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.page-header {
+  padding: 3rem 1.5rem 1rem;
+}
+
+.page-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(2.2rem, 2.6vw, 2.8rem);
+  font-weight: 600;
+  color: var(--color-heading);
+  letter-spacing: -0.01em;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--color-muted);
+  max-width: 42rem;
+}
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.page-wrapper {
+  display: flex;
+  gap: 3rem;
+  padding: 0 1.5rem 4rem;
+  justify-content: center;
+}
+
+.page-content {
+  max-width: 680px;
+  width: 100%;
+  padding-bottom: 3rem;
+}
+
+.page-content h1,
+.page-content h2,
+.page-content h3,
+.page-content h4,
+.page-content h5,
+.page-content h6 {
+  color: var(--color-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2.4em;
+  margin-bottom: 0.8em;
+  line-height: 1.3;
+}
+
+.page-content h1:first-child {
+  margin-top: 0;
+}
+
+.page-content p,
+.page-content ul,
+.page-content ol,
+.page-content dl,
+.page-content blockquote,
+.page-content pre,
+.page-content table {
+  margin-top: 0;
+  margin-bottom: 1.2em;
+}
+
+.page-content a {
+  color: var(--color-heading);
+  text-decoration: underline;
+  text-decoration-color: rgba(67, 85, 185, 0.4);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.page-content a:hover,
+.page-content a:focus {
+  text-decoration-color: var(--color-heading);
+}
+
+.page-content strong {
+  font-weight: 600;
+}
+
+.page-content em {
+  font-style: italic;
+}
+
+.page-content ul,
+.page-content ol {
+  padding-left: 1.4em;
+}
+
+.page-content li + li {
+  margin-top: 0.3em;
+}
+
+.page-content blockquote {
+  border-left: 4px solid var(--color-border);
+  padding: 0.5rem 1.2rem;
+  margin-left: 0;
+  color: var(--color-muted);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+}
+
+.page-content code {
+  font-family: "Iosevka", "Iosevka SS09", "Menlo", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  background-color: var(--color-code-bg);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.95em;
+  color: var(--color-heading);
+}
+
+.page-content pre {
+  overflow-x: auto;
+  background: var(--color-code-bg);
+  padding: 1.1rem 1.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.page-content pre code {
+  display: block;
+  padding: 0;
+  background: none;
+  font-size: 0.92em;
+}
+
+.page-content table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.page-content th,
+.page-content td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-content th {
+  color: var(--color-muted);
+  font-weight: 600;
+  background: rgba(226, 230, 234, 0.4);
+}
+
+.page-content tr:last-child td {
+  border-bottom: none;
+}
+
+.page-content hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 3rem 0;
+}
+
+.page-content .admonition,
+.page-content .note,
+.page-content .warning {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid currentColor;
+  margin-bottom: 1.4em;
+  background-color: rgba(67, 85, 185, 0.08);
+}
+
+.page-content .admonition > .admonition-title,
+.page-content .note > .admonition-title,
+.page-content .warning > .admonition-title {
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+  font-size: 0.85em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+.page-content .warning {
+  color: var(--color-warning);
+  background-color: rgba(194, 126, 81, 0.08);
+  border-color: rgba(194, 126, 81, 0.4);
+}
+
+.page-content .note {
+  color: var(--color-note);
+  border-color: rgba(67, 85, 185, 0.35);
+}
+
+.page-content .note > *:last-child,
+.page-content .warning > *:last-child {
+  margin-bottom: 0;
+}
+
+.page-toc {
+  position: sticky;
+  top: 6rem;
+  align-self: flex-start;
+  max-width: 220px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+}
+
+.page-toc nav {
+  padding-top: 1rem;
+}
+
+.toc-title {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  letter-spacing: 0.1em;
+}
+
+.page-toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.page-toc li {
+  margin-bottom: 0.6rem;
+}
+
+.page-toc a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.page-toc a:hover,
+.page-toc a:focus {
+  color: var(--color-heading);
+}
+
+.page-footer {
+  padding: 2rem 1.5rem 3rem;
+  border-top: 1px solid var(--color-border);
+  background: rgba(216, 220, 226, 0.2);
+}
+
+.footer-text {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+
+.footer-text a {
+  color: var(--color-heading);
+  text-decoration: none;
+}
+
+.footer-text a:hover,
+.footer-text a:focus {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(67, 85, 185, 0.6);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1023px) {
+  .page-wrapper {
+    flex-direction: column;
+    padding: 0 1.25rem 3rem;
+  }
+
+  .page-toc {
+    display: none;
+  }
+}
+
+@media (max-width: 599px) {
+  body {
+    font-size: 17px;
+  }
+
+  .page-header {
+    padding: 2.5rem 1.25rem 1rem;
+  }
+
+  .page-content pre {
+    padding: 1rem;
+  }
+}

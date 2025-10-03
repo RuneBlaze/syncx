@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "syncx"
-description = "Rust-powered concurrency primitives for Python: atomics, parking_lot locks, and more"
+description = "Rust-powered concurrency primitives for Python: atomics and concurrent collections"
 requires-python = ">=3.8"
 dynamic = ["version"]
 readme = "README.md"

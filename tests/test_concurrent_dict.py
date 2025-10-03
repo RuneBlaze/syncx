@@ -28,6 +28,19 @@ def test_basic_kv_operations() -> None:
     assert len(cd) == 0
 
 
+def test_iterator_streams_keys() -> None:
+    cd = ConcurrentDict()
+    cd["alpha"] = 1
+    cd["beta"] = 2
+
+    iterator = iter(cd)
+    seen = {next(iterator), next(iterator)}
+    assert seen == {"alpha", "beta"}
+
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
 def test_get_and_defaults() -> None:
     cd = ConcurrentDict()
 

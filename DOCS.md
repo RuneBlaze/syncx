@@ -1,6 +1,6 @@
 # syncx API Reference
 
-syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package now groups its surface into three submodules—`atomic`, `locks`, and `collections`—so you can pick the tool you need without hunting through helper packages.
+syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package now groups its surface into two submodules—`atomic` and `collections`—so you can pick the tool you need without hunting through helper packages.
 
 <div class="note">
 
@@ -30,18 +30,15 @@ Upgrade in place with `pip install --upgrade syncx` once new wheels ship.
 
 ```python
 from syncx.atomic import AtomicInt
-from syncx.locks import Lock
 from syncx.collections import Queue
 
 counter = AtomicInt(41)
 counter.inc()
 assert counter.load() == 42
 
-mutex = Lock()
-with mutex:
-    queue = Queue(maxsize=1)
-    queue.put("message")
-    assert queue.get_nowait() == "message"
+queue = Queue(maxsize=1)
+queue.put("message")
+assert queue.get_nowait() == "message"
 ```
 
 ## Module reference
@@ -94,46 +91,6 @@ Thread-safe reference slot that stores arbitrary Python objects.
 - `set(obj)` / `exchange(obj) -> object | None`
 - `compare_exchange(expected, obj) -> bool` matches against object identity and equality (`__eq__`).
 
-### `syncx.locks`
-
-Wrappers around `parking_lot` primitives with Python-friendly naming.
-
-#### `Lock`
-
-- `Lock()` creates a standard mutex.
-- `acquire(blocking: bool = True, timeout: float | None = None) -> bool` follows `threading.Lock` semantics.
-- `try_acquire()` / `try_lock()` return `False` immediately when contended.
-- `release()` unlocks without creating a guard object.
-- `guard(blocking: bool = True, timeout: float | None = None) -> LockGuard | None` provides the optional RAII path.
-- `locked()` / `is_locked()` expose state.
-- Acts as a context manager (`with Lock(): ...`).
-
-#### `LockGuard`
-
-- `release()` / `unlock()` explicitly drop the guard.
-- Context-manager friendly for scoped locking.
-
-#### `RLock`
-
-- `RLock()` reentrant mutex.
-- `acquire()` / `try_acquire()` behave like `Lock` but allow recursive ownership per thread.
-- `RLockGuard` mirrors `LockGuard` for reentrant cases.
-
-#### `RWLock`
-
-- `RWLock()` root read/write lock.
-- `acquire_read(blocking: bool = True, timeout: float | None = None) -> bool` and `read_release()` mirror the bool-based API.
-- `acquire_write(...) -> bool`, `write_release()`, and `write_release_fair()` manage exclusive owners.
-- `read_guard(...)` / `write_guard(...)` offer optional RAII wrappers that return `ReadGuard` / `WriteGuard`.
-- `bump_shared()` / `bump_exclusive()` provide fairness hints when readers or writers stall.
-- `is_locked()` / `is_write_locked()` expose state snapshots.
-
-#### `ReadGuard` & `WriteGuard`
-
-- `release()` / `unlock()` drop the underlying lock.
-- `WriteGuard.release_fair()` hands the lock to the next waiter.
-- `WriteGuard.downgrade() -> ReadGuard | None` moves from exclusive to shared ownership when still held.
-
 ### `syncx.collections`
 
 Thread-safe collections backed by `flume`, `DashMap`, and `DashSet`.
@@ -158,6 +115,7 @@ DashMap-backed dictionary with per-key sharding.
 
 - `ConcurrentDict()` instantiates an empty map.
 - `obj[key]`, `obj[key] = value`, `del obj[key]` follow standard mapping semantics.
+- `iter(obj)` yields a live view of keys without materializing an intermediate list.
 - Lock-free lookups: `get`, `setdefault`, `pop` (with optional defaults).
 - `clear()` and length/truthiness helpers (`len(obj)`, `bool(obj)`).
 - Pickle helpers: `__getstate__()` returns a Python `dict`; `__setstate__(state)` restores contents.
@@ -168,6 +126,7 @@ DashSet-backed set for hashable Python values.
 
 - `ConcurrentSet()` constructs an empty set.
 - Membership via `value in obj`.
+- `iter(obj)` streams members lazily without copying the entire set.
 - Mutators: `add`, `discard`, `remove`, `clear`, `copy`.
 - Pickle helpers move data through Python lists.
 

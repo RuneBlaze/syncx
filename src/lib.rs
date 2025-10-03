@@ -1,6 +1,5 @@
 mod atomic;
 mod collections;
-mod locks;
 mod submodule;
 
 use pyo3::prelude::*;
@@ -14,7 +13,6 @@ const PY_VERSION: &str = env!("SYNCX_PY_VERSION");
 fn syncx(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     atomic::register(py, m)?;
     collections::register(py, m)?;
-    locks::register(py, m)?;
     m.add("__version__", PY_VERSION)?;
     Ok(())
 }

@@ -1,8 +1,11 @@
+use std::collections::hash_map::RandomState;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::submodule;
+use dashmap::iter::Iter as DashMapIter;
+use dashmap::iter_set::Iter as DashSetIter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use flume::{Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError};
@@ -233,6 +236,49 @@ impl Hash for DictKey {
     }
 }
 
+#[pyclass(module = "syncx.collections", unsendable)]
+struct ConcurrentDictIter {
+    _owner: Arc<DashMap<DictKey, Py<PyAny>>>,
+    iter: DashMapIter<'static, DictKey, Py<PyAny>>,
+}
+
+impl ConcurrentDictIter {
+    fn new(owner: Arc<DashMap<DictKey, Py<PyAny>>>) -> Self {
+        let iter = unsafe { dict_iter_from_arc(&owner) };
+        Self {
+            _owner: owner,
+            iter,
+        }
+    }
+}
+
+#[pymethods]
+impl ConcurrentDictIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
+        let py = slf.py();
+        slf.iter
+            .next()
+            .map(|entry| entry.key().object.clone_ref(py))
+    }
+}
+
+unsafe fn dict_iter_from_arc(
+    owner: &Arc<DashMap<DictKey, Py<PyAny>>>,
+) -> DashMapIter<'static, DictKey, Py<PyAny>> {
+    let map_ref: &DashMap<DictKey, Py<PyAny>> = owner.as_ref();
+    let iter = map_ref.iter();
+    // SAFETY: we tie the iterator lifetime to the stored Arc to keep the map alive
+    // for at least as long as the iterator exists.
+    std::mem::transmute::<
+        DashMapIter<'_, DictKey, Py<PyAny>>,
+        DashMapIter<'static, DictKey, Py<PyAny>>,
+    >(iter)
+}
+
 impl ConcurrentDict {
     fn new_inner() -> Arc<DashMap<DictKey, Py<PyAny>>> {
         Arc::new(DashMap::new())
@@ -258,6 +304,10 @@ impl ConcurrentDict {
 
     fn __bool__(&self) -> bool {
         !self.inner.is_empty()
+    }
+
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<ConcurrentDictIter>> {
+        Py::new(py, ConcurrentDictIter::new(self.inner.clone()))
     }
 
     fn __contains__(&self, key: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -426,6 +476,48 @@ impl Hash for SetKey {
     }
 }
 
+#[pyclass(module = "syncx.collections", unsendable)]
+struct ConcurrentSetIter {
+    _owner: Arc<DashSet<SetKey>>,
+    iter: DashSetIter<'static, SetKey, RandomState, DashMap<SetKey, (), RandomState>>,
+}
+
+impl ConcurrentSetIter {
+    fn new(owner: Arc<DashSet<SetKey>>) -> Self {
+        let iter = unsafe { set_iter_from_arc(&owner) };
+        Self {
+            _owner: owner,
+            iter,
+        }
+    }
+}
+
+#[pymethods]
+impl ConcurrentSetIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
+        let py = slf.py();
+        slf.iter.next().map(|entry| entry.key().clone_object(py))
+    }
+}
+
+unsafe fn set_iter_from_arc(
+    owner: &Arc<DashSet<SetKey>>,
+) -> DashSetIter<'static, SetKey, RandomState, DashMap<SetKey, (), RandomState>> {
+    let set_ref: &DashSet<SetKey> = owner.as_ref();
+    let iter = set_ref.iter();
+    // SAFETY: the iterator borrows from the underlying DashSet. The stored Arc keeps
+    // the set alive for the full lifetime of the iterator, so extending the lifetime
+    // to 'static is sound.
+    std::mem::transmute::<
+        DashSetIter<'_, SetKey, RandomState, DashMap<SetKey, (), RandomState>>,
+        DashSetIter<'static, SetKey, RandomState, DashMap<SetKey, (), RandomState>>,
+    >(iter)
+}
+
 impl ConcurrentSet {
     fn new_inner() -> Arc<DashSet<SetKey>> {
         Arc::new(DashSet::new())
@@ -456,6 +548,10 @@ impl ConcurrentSet {
     fn __contains__(&self, value: &Bound<'_, PyAny>) -> PyResult<bool> {
         let key = Self::ensure_hashable(value)?;
         Ok(self.inner.contains(&key))
+    }
+
+    fn __iter__(&self, py: Python<'_>) -> PyResult<Py<ConcurrentSetIter>> {
+        Py::new(py, ConcurrentSetIter::new(self.inner.clone()))
     }
 
     fn add(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {

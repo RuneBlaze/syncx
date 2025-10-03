@@ -34,6 +34,19 @@ def test_basic_membership_and_mutation() -> None:
     assert len(cs) == 0
 
 
+def test_iterator_streams_members() -> None:
+    cs = ConcurrentSet()
+    cs.add("alpha")
+    cs.add("beta")
+
+    iterator = iter(cs)
+    seen = {next(iterator), next(iterator)}
+    assert seen == {"alpha", "beta"}
+
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
 def test_copy_creates_independent_snapshot() -> None:
     cs = ConcurrentSet()
     cs.add(1)

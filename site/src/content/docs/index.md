@@ -3,7 +3,7 @@ title: syncx API Reference
 description: Rust-backed concurrency primitives for Python developers.
 ---
 
-syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package groups its surface into three submodules—`atomic`, `locks`, and `collections`—so you can pick the tool you need without hunting through helper packages.
+syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package groups its surface into two submodules—`atomic` and `collections`—so you can pick the tool you need without hunting through helper packages.
 
 :::note{title="Interpreter support"}
 Wheels target CPython 3.9–3.13. Build free-threaded (`3.13t`) wheels with `PYTHON_GIL=0 maturin build --release --no-default-features` when you have a free-threaded interpreter available.
@@ -31,18 +31,15 @@ Upgrade in place with `pip install --upgrade syncx` once new wheels ship.
 
 ```python
 from syncx.atomic import AtomicInt
-from syncx.locks import Lock
 from syncx.collections import Queue
 
 counter = AtomicInt(41)
 counter.inc()
 assert counter.load() == 42
 
-mutex = Lock()
-with mutex:
-    queue = Queue(maxsize=1)
-    queue.put("message")
-    assert queue.get_nowait() == "message"
+queue = Queue(maxsize=1)
+queue.put("message")
+assert queue.get_nowait() == "message"
 ```
 
 ## Module reference
@@ -92,45 +89,6 @@ Thread-safe reference slot that stores arbitrary Python objects.
 - `get() -> object | None` clones the reference into Python space.
 - `set(obj)` / `exchange(obj) -> object | None`
 - `compare_exchange(expected, obj) -> bool` matches against object identity and equality (`__eq__`).
-
-### `syncx.locks`
-
-Wrappers around `parking_lot` primitives with Python-friendly naming.
-
-#### `Lock`
-
-- `Lock()` creates a standard mutex.
-- `acquire(blocking: bool = True, timeout: float | None = None) -> bool` mirrors `threading.Lock`.
-- `try_acquire()` / `try_lock()` return `False` immediately when busy.
-- `release()` unlocks without allocating a guard.
-- `guard(blocking: bool = True, timeout: float | None = None) -> LockGuard | None` keeps the ergonomic RAII path.
-- `locked()` / `is_locked()` expose state.
-- Acts as a context manager (`with Lock(): ...`).
-
-#### `LockGuard`
-
-- `release()` / `unlock()` explicitly drop the guard.
-- Context-manager friendly for scoped locking.
-
-#### `RLock`
-
-- `RLock()` reentrant mutex.
-- `acquire()` / `try_acquire()` behave like `Lock` but allow recursive ownership per thread.
-- `RLockGuard` mirrors `LockGuard` for reentrant cases.
-
-#### `RWLock`
-
-- `RWLock()` root read/write lock.
-- `acquire_read(...)-> bool` / `read_release()` cover the bool path, while `read_guard(...)` produces a scoped guard.
-- `acquire_write(...)-> bool`, `write_release()`, and `write_release_fair()` manage exclusive holders.
-- `bump_shared()` / `bump_exclusive()` provide fairness nudges when readers or writers pile up.
-- `is_locked()` / `is_write_locked()` expose state snapshots.
-
-#### `ReadGuard` & `WriteGuard`
-
-- `release()` / `unlock()` drop the underlying lock.
-- `WriteGuard.release_fair()` hands the lock directly to the next waiter when desired.
-- `WriteGuard.downgrade() -> ReadGuard | None` moves from exclusive to shared ownership when still held.
 
 ### `syncx.collections`
 

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html$if(lang)$ lang="$lang$"$endif$>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  $if(title)$
+  <title>$title$</title>
+  $endif$
+  $for(author)$
+  <meta name="author" content="$author$" />
+  $endfor$
+  $if(date)$
+  <meta name="date" content="$date$" />
+  $endif$
+  $if(description)$
+  <meta name="description" content="$description$" />
+  $endif$
+  $for(css)$
+  <link rel="stylesheet" href="$css$" />
+  $endfor$
+  $for(header-includes)$
+  $header-includes$
+  $endfor$
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="page-header">
+    <div class="container">
+      $if(title)$
+      <h1 class="page-title">$title$</h1>
+      $endif$
+      $if(subtitle)$
+      <p class="page-subtitle">$subtitle$</p>
+      $endif$
+    </div>
+  </header>
+  <div class="page-wrapper">
+    $if(toc)$
+    <aside class="page-toc" aria-label="Table of contents">
+      <nav>
+        <h2 class="toc-title">On this page</h2>
+        $toc$
+      </nav>
+    </aside>
+    $endif$
+    <main id="main-content" class="page-content">
+      $body$
+    </main>
+  </div>
+  <footer class="page-footer">
+    <div class="container">
+      <p class="footer-text">
+        syncx documentation · <a href="https://github.com/RuneBlaze/syncx">GitHub</a> · MIT licensed
+      </p>
+    </div>
+  </footer>
+  $for(include-after)$
+  $include-after$
+  $endfor$
+</body>
+</html>

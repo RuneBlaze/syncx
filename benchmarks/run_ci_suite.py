@@ -8,23 +8,6 @@ import sys
 from pathlib import Path
 
 
-LOCKS_PARAMS = [
-    "--threads",
-    "1",
-    "2",
-    "4",
-    "--iterations",
-    "1000",
-    "--reentrant-depth",
-    "2",
-    "--rw-readers",
-    "4",
-    "--rw-writers",
-    "2",
-    "--rw-operations",
-    "10",
-]
-
 DICTS_PARAMS = [
     "--threads",
     "1",
@@ -97,11 +80,9 @@ def main(argv: list[str]) -> int:
     run_command([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
     run_command([sys.executable, "-m", "pip", "install", str(wheel_path)])
 
-    locks_json = args.results_dir / "locks.json"
     dicts_json = args.results_dir / "dicts.json"
     queues_json = args.results_dir / "queues.json"
 
-    run_command([sys.executable, "benchmarks/compare_locks.py", *LOCKS_PARAMS, "--json", str(locks_json)])
     run_command([sys.executable, "benchmarks/compare_dicts.py", *DICTS_PARAMS, "--json", str(dicts_json)])
     run_command([sys.executable, "benchmarks/compare_queues.py", *QUEUES_PARAMS, "--json", str(queues_json)])
 
@@ -111,7 +92,6 @@ def main(argv: list[str]) -> int:
             "benchmarks/aggregate_ci_results.py",
             "--output",
             str(args.output),
-            str(locks_json),
             str(dicts_json),
             str(queues_json),
         ]
