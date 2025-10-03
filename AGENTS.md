@@ -4,6 +4,7 @@
 The Rust core lives in `src/`, where `lib.rs` registers the Python module and is backed by `atomic.rs` and `locks.rs` for the exposed primitives. Type hints for downstream users sit under `syncx/` (`__init__.pyi`, `atomic.pyi`, `locks.pyi`); update these stubs alongside any API changes. Python-facing regression tests reside in `tests/`, driven by `pytest`. Packaging and release metadata is split between `Cargo.toml` for the Rust crate and `pyproject.toml` for the maturin build backend. Reference usage notes in `DOCS.md` when adjusting behavior or examples.
 
 ## Build, Test, and Development Commands
+- Always prefix Python invocations with `uv` (e.g. `uv run`, `uv pip`) to ensure the managed environment is used.
 - `maturin develop --release`: build the extension and install it into the active virtualenv for local iteration.
 - `maturin build --release`: produce `abi3` wheels for the standard GIL build; run before publishing.
 - `PYTHON_GIL=0 maturin build --release --no-default-features`: emit free-threaded (`cp3xx`t) wheels using the same source; requires a free-threaded interpreter.

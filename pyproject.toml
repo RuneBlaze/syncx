@@ -27,3 +27,10 @@ authors = [
 
 [tool.maturin]
 python-source = "syncx"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.13.3",
+]
