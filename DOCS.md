@@ -7,13 +7,33 @@ syncx exposes Rust concurrency primitives to Python. The initial release focuses
 Build from source for local development:
 
 ```bash
-maturin develop --release
+uv run maturin develop --release
 ```
 
 Or install from PyPI once packages are published:
 
 ```bash
 pip install syncx
+```
+
+## Testing
+
+Use Nox with uv-managed environments to rebuild the extension and run the pytest suite across supported interpreters.
+
+```bash
+nox --default-venv-backend uv
+```
+
+Target a single interpreter by selecting the matching session (e.g., CPython 3.13):
+
+```bash
+nox --default-venv-backend uv -s tests-3.13
+```
+
+To exercise the free-threaded build, run the dedicated session (requires a 3.13t interpreter):
+
+```bash
+nox --default-venv-backend uv -s tests-free-threaded
 ```
 
 ## Module layout

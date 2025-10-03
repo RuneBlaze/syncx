@@ -1,14 +1,17 @@
 use crate::submodule;
 use portable_atomic::AtomicF64;
+use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
-use std::sync::atomic::{AtomicI64, Ordering::SeqCst};
+use pyo3::{Bound, Py};
+use std::sync::atomic::{AtomicI64, AtomicPtr, Ordering::SeqCst};
 
 pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(py, "atomic")?;
     module.add_class::<AtomicInt>()?;
     module.add_class::<AtomicBool>()?;
     module.add_class::<AtomicFloat>()?;
+    module.add_class::<AtomicReference>()?;
     submodule::register_submodule(py, parent, &module, "syncx.atomic")?;
     Ok(())
 }
@@ -402,5 +405,108 @@ impl AtomicFloat {
     fn __setstate__(&mut self, value: f64) -> PyResult<()> {
         self.store(value);
         Ok(())
+    }
+}
+
+#[pyclass(module = "syncx.atomic")]
+#[derive(Debug)]
+pub struct AtomicReference {
+    ptr: AtomicPtr<ffi::PyObject>,
+}
+
+#[pymethods]
+impl AtomicReference {
+    #[new]
+    #[pyo3(signature = (obj=None))]
+    fn new(py: Python<'_>, obj: Option<Bound<'_, PyAny>>) -> Self {
+        let initial_ptr = obj
+            .map(Bound::unbind)
+            .unwrap_or_else(|| py.None())
+            .into_ptr();
+        Self {
+            ptr: AtomicPtr::new(initial_ptr),
+        }
+    }
+
+    pub fn get(&self, py: Python<'_>) -> Py<PyAny> {
+        let ptr = self.ptr.load(SeqCst);
+        unsafe {
+            ffi::Py_INCREF(ptr);
+            Py::from_owned_ptr(py, ptr)
+        }
+    }
+
+    pub fn set(&self, obj: Py<PyAny>) {
+        let new_ptr = obj.into_ptr();
+        let old_ptr = self.ptr.swap(new_ptr, SeqCst);
+        if !old_ptr.is_null() {
+            unsafe {
+                ffi::Py_DECREF(old_ptr);
+            }
+        }
+    }
+
+    pub fn exchange(&self, py: Python<'_>, obj: Py<PyAny>) -> Py<PyAny> {
+        let new_ptr = obj.into_ptr();
+        let old_ptr = self.ptr.swap(new_ptr, SeqCst);
+        unsafe { Py::from_owned_ptr(py, old_ptr) }
+    }
+
+    #[pyo3(signature = (expected, obj))]
+    pub fn compare_exchange(&self, expected: &Bound<'_, PyAny>, obj: Py<PyAny>) -> bool {
+        let expected_ptr = expected.as_ptr();
+        let new_ptr = obj.into_ptr();
+
+        match self
+            .ptr
+            .compare_exchange(expected_ptr, new_ptr, SeqCst, SeqCst)
+        {
+            Ok(old_ptr) => {
+                if !old_ptr.is_null() {
+                    unsafe {
+                        ffi::Py_DECREF(old_ptr);
+                    }
+                }
+                true
+            }
+            Err(_) => {
+                unsafe {
+                    ffi::Py_DECREF(new_ptr);
+                }
+                false
+            }
+        }
+    }
+
+    pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let current = self.get(py);
+        let bound = current.bind(py);
+        let inner_repr = bound.repr()?.extract::<String>()?;
+        Ok(format!("AtomicReference({inner_repr})"))
+    }
+
+    pub fn __str__(&self, py: Python<'_>) -> PyResult<String> {
+        let current = self.get(py);
+        current.bind(py).str()?.extract()
+    }
+
+    pub fn __getstate__(&self, py: Python<'_>) -> Py<PyAny> {
+        self.get(py)
+    }
+
+    pub fn __setstate__(&self, obj: Py<PyAny>) -> PyResult<()> {
+        self.set(obj);
+        Ok(())
+    }
+}
+
+impl Drop for AtomicReference {
+    fn drop(&mut self) {
+        let ptr = self.ptr.swap(std::ptr::null_mut(), SeqCst);
+        if !ptr.is_null() {
+            unsafe {
+                ffi::Py_DECREF(ptr);
+            }
+        }
     }
 }

@@ -1,2 +1,2 @@
 [tasks.test]
-run = "maturin build --release --no-default-features && pip install --force-reinstall /Users/baqiao/src/syncx/target/wheels/syncx-0.0.1a1-cp313-cp313t-macosx_11_0_arm64.whl && gtimeout \"${PYTEST_TIMEOUT:-10s}\" pytest"
+run = "uv tool run nox --default-venv-backend uv -s tests-free-threaded"

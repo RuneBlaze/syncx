@@ -1,10 +1,12 @@
 import threading
-from syncx.atomic import AtomicInt, AtomicBool, AtomicFloat
+from syncx.atomic import AtomicInt, AtomicBool, AtomicFloat, AtomicReference
 import pytest
 
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import gc
+import weakref
 
 
 def test_atomic_int_increment():
@@ -447,3 +449,64 @@ def test_atomic_float_compare_exchange_race():
     # Exactly one thread should have succeeded
     assert winner_count == 1
     assert atomic.load() == 1.0
+
+
+def test_atomic_reference_default_none():
+    ref = AtomicReference()
+    assert ref.get() is None
+
+
+def test_atomic_reference_exchange_and_get():
+    sentinel = object()
+    ref = AtomicReference(sentinel)
+
+    previous = ref.exchange("updated")
+    assert previous is sentinel
+    assert ref.get() == "updated"
+
+
+def test_atomic_reference_compare_exchange_success_and_failure():
+    ref = AtomicReference(0)
+
+    current = ref.get()
+    assert ref.compare_exchange(current, 1)
+    assert ref.get() == 1
+
+    other_current = ref.get()
+    assert not ref.compare_exchange(current, 2)
+    assert ref.compare_exchange(other_current, 2)
+    assert ref.get() == 2
+
+
+def test_atomic_reference_drops_old_values_when_replaced():
+    class Payload:
+        pass
+
+    original = Payload()
+    weak = weakref.ref(original)
+    ref = AtomicReference(original)
+    del original
+    gc.collect()
+
+    assert weak() is not None
+
+    ref.set(Payload())
+    gc.collect()
+
+    assert weak() is None
+
+
+def test_atomic_reference_compare_exchange_concurrent_increment():
+    ref = AtomicReference(0)
+
+    def increment_once():
+        while True:
+            current = ref.get()
+            next_value = current + 1
+            if ref.compare_exchange(current, next_value):
+                break
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(lambda _: increment_once(), range(1000)))
+
+    assert ref.get() == 1000

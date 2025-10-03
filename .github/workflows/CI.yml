@@ -10,46 +10,14 @@ on:
 
 jobs:
   tests:
-    name: Tests (${{ matrix.python }} / ${{ matrix.variant }})
+    name: Nox test suite
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - python: "3.8"
-            variant: gil
-            maturin-flags: ""
-            pytest-cmd: "pytest tests -q"
-            gil-env: ""
-          - python: "3.13t"
-            variant: free-threaded
-            maturin-flags: "--no-default-features"
-            pytest-cmd: "python -X gil=0 -m pytest tests -q"
-            gil-env: "0"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Create virtualenv
-        run: python -m venv .venv
-      - name: Install tooling
-        run: |
-          . .venv/bin/activate
-          pip install --upgrade pip
-          pip install maturin pytest
-      - name: Build extension
-        run: |
-          . .venv/bin/activate
-          maturin develop --release ${{ matrix.maturin-flags }}
-        env:
-          PYTHON_GIL: ${{ matrix.gil-env }}
-      - name: Run pytest
-        run: |
-          . .venv/bin/activate
-          ${{ matrix.pytest-cmd }}
-        env:
-          PYTHON_GIL: ${{ matrix.gil-env }}
+      - uses: astral-sh/setup-uv@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Nox sessions
+        run: uv tool run nox -- --default-venv-backend uv
 
   linux-gil:
     runs-on: ubuntu-latest
