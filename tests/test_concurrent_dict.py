@@ -5,7 +5,7 @@ import pickle
 
 import pytest
 
-from syncx.dict import ConcurrentDict
+from syncx.collections import ConcurrentDict
 
 
 def test_basic_kv_operations() -> None:

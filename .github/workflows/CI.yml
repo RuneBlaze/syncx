@@ -28,6 +28,15 @@ jobs:
           manylinux: auto
           command: build
           args: --release --sdist -o dist --find-interpreter
+      - name: Run CI benchmarks
+        run: python benchmarks/run_ci_suite.py --output benchmarks-linux-gil.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-linux-gil
+          path: |
+            benchmarks-linux-gil.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -42,6 +51,16 @@ jobs:
         with:
           command: build
           args: --release -o dist --find-interpreter
+      - name: Run CI benchmarks
+        shell: pwsh
+        run: python benchmarks/run_ci_suite.py --output benchmarks-windows-gil.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-windows-gil
+          path: |
+            benchmarks-windows-gil.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -56,6 +75,15 @@ jobs:
         with:
           command: build
           args: --release -o dist --target universal2-apple-darwin --find-interpreter
+      - name: Run CI benchmarks
+        run: python benchmarks/run_ci_suite.py --output benchmarks-macos-gil.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-macos-gil
+          path: |
+            benchmarks-macos-gil.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -79,6 +107,15 @@ jobs:
           python -X gil=0 -m maturin build --release --no-default-features -o dist
         env:
           PYTHON_GIL: 0
+      - name: Run CI benchmarks
+        run: python benchmarks/run_ci_suite.py --output benchmarks-linux-free-threaded.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-linux-free-threaded
+          path: |
+            benchmarks-linux-free-threaded.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -100,6 +137,15 @@ jobs:
       - name: Build free-threaded wheels
         run: |
           python -X gil=0 -m maturin build --release --no-default-features -o dist --target universal2-apple-darwin
+      - name: Run CI benchmarks
+        run: python benchmarks/run_ci_suite.py --output benchmarks-macos-free-threaded.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-macos-free-threaded
+          path: |
+            benchmarks-macos-free-threaded.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -121,6 +167,16 @@ jobs:
         shell: pwsh
         run: |
           python -X gil=0 -m maturin build --release --no-default-features -o dist --find-interpreter
+      - name: Run CI benchmarks
+        shell: pwsh
+        run: python benchmarks/run_ci_suite.py --output benchmarks-windows-free-threaded.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-windows-free-threaded
+          path: |
+            benchmarks-windows-free-threaded.json
+            benchmark-results
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -143,6 +199,11 @@ jobs:
         with:
           pattern: wheels-*
           path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: benchmarks-*
+          path: benchmark-results
           merge-multiple: true
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1

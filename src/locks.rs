@@ -1,13 +1,149 @@
 use crate::submodule;
 use parking_lot::lock_api::{
-    RawMutex as RawMutexTrait, RawRwLock as RawRwLockTrait, RawRwLockDowngrade,
+    RawMutex as RawMutexTrait, RawMutexTimed, RawRwLock as RawRwLockTrait, RawRwLockDowngrade,
+    RawRwLockFair, RawRwLockTimed,
 };
 use parking_lot::{RawMutex, RawRwLock, ReentrantMutex, ReentrantMutexGuard};
+use pyo3::conversion::IntoPyObject;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::Bound;
 use std::mem::transmute;
+use std::ptr::NonNull;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+#[allow(deprecated)]
+fn lock_with_options(
+    inner: &RawMutex,
+    py: Python<'_>,
+    blocking: bool,
+    timeout: Option<f64>,
+) -> PyResult<bool> {
+    if !blocking {
+        return Ok(inner.try_lock());
+    }
+
+    if inner.try_lock() {
+        return Ok(true);
+    }
+
+    match timeout {
+        None => {
+            py.allow_threads(|| inner.lock());
+            Ok(true)
+        }
+        Some(value) => {
+            if value.is_sign_negative() {
+                return Ok(false);
+            }
+            if !value.is_finite() {
+                py.allow_threads(|| inner.lock());
+                return Ok(true);
+            }
+
+            let max_secs = Duration::MAX.as_secs_f64();
+            if value >= max_secs {
+                py.allow_threads(|| inner.lock());
+                return Ok(true);
+            }
+
+            let duration = Duration::from_secs_f64(value);
+            let deadline = Instant::now()
+                .checked_add(duration)
+                .unwrap_or_else(Instant::now);
+            Ok(py.allow_threads(|| inner.try_lock_until(deadline)))
+        }
+    }
+}
+
+#[allow(deprecated)]
+fn lock_shared_with_options(
+    inner: &RawRwLock,
+    py: Python<'_>,
+    blocking: bool,
+    timeout: Option<f64>,
+) -> PyResult<bool> {
+    if !blocking {
+        return Ok(inner.try_lock_shared());
+    }
+
+    if inner.try_lock_shared() {
+        return Ok(true);
+    }
+
+    match timeout {
+        None => {
+            py.allow_threads(|| inner.lock_shared());
+            Ok(true)
+        }
+        Some(value) => {
+            if value.is_sign_negative() {
+                return Ok(false);
+            }
+            if !value.is_finite() {
+                py.allow_threads(|| inner.lock_shared());
+                return Ok(true);
+            }
+
+            let max_secs = Duration::MAX.as_secs_f64();
+            if value >= max_secs {
+                py.allow_threads(|| inner.lock_shared());
+                return Ok(true);
+            }
+
+            let duration = Duration::from_secs_f64(value);
+            let deadline = Instant::now()
+                .checked_add(duration)
+                .unwrap_or_else(Instant::now);
+            Ok(py.allow_threads(|| inner.try_lock_shared_until(deadline)))
+        }
+    }
+}
+
+#[allow(deprecated)]
+fn lock_exclusive_with_options(
+    inner: &RawRwLock,
+    py: Python<'_>,
+    blocking: bool,
+    timeout: Option<f64>,
+) -> PyResult<bool> {
+    if !blocking {
+        return Ok(inner.try_lock_exclusive());
+    }
+
+    if inner.try_lock_exclusive() {
+        return Ok(true);
+    }
+
+    match timeout {
+        None => {
+            py.allow_threads(|| inner.lock_exclusive());
+            Ok(true)
+        }
+        Some(value) => {
+            if value.is_sign_negative() {
+                return Ok(false);
+            }
+            if !value.is_finite() {
+                py.allow_threads(|| inner.lock_exclusive());
+                return Ok(true);
+            }
+
+            let max_secs = Duration::MAX.as_secs_f64();
+            if value >= max_secs {
+                py.allow_threads(|| inner.lock_exclusive());
+                return Ok(true);
+            }
+
+            let duration = Duration::from_secs_f64(value);
+            let deadline = Instant::now()
+                .checked_add(duration)
+                .unwrap_or_else(Instant::now);
+            Ok(py.allow_threads(|| inner.try_lock_exclusive_until(deadline)))
+        }
+    }
+}
 
 pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(py, "locks")?;
@@ -23,9 +159,8 @@ pub fn register(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 #[pyclass(module = "syncx.locks")]
-#[derive(Clone)]
 pub struct Lock {
-    inner: Arc<RawMutex>,
+    inner: RawMutex,
 }
 
 #[pymethods]
@@ -33,35 +168,38 @@ impl Lock {
     #[new]
     fn new() -> Self {
         Self {
-            inner: Arc::new(RawMutex::INIT),
+            inner: RawMutex::INIT,
         }
     }
 
-    pub fn acquire(&self) -> LockGuard {
-        self.inner.lock();
-        LockGuard {
-            guard: LockGuardState::Locked(Arc::clone(&self.inner)),
-        }
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn acquire(&self, py: Python<'_>, blocking: bool, timeout: Option<f64>) -> PyResult<bool> {
+        lock_with_options(&self.inner, py, blocking, timeout)
     }
 
-    #[pyo3(name = "lock")]
-    pub fn lock_alias(&self) -> LockGuard {
-        self.acquire()
+    #[pyo3(name = "lock", signature = (blocking=true, timeout=None))]
+    pub fn lock_alias(
+        &self,
+        py: Python<'_>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<bool> {
+        self.acquire(py, blocking, timeout)
     }
 
-    pub fn try_acquire(&self) -> Option<LockGuard> {
-        if self.inner.try_lock() {
-            Some(LockGuard {
-                guard: LockGuardState::Locked(Arc::clone(&self.inner)),
-            })
-        } else {
-            None
-        }
+    pub fn try_acquire(&self) -> bool {
+        self.inner.try_lock()
     }
 
     #[pyo3(name = "try_lock")]
-    pub fn try_lock_alias(&self) -> Option<LockGuard> {
+    pub fn try_lock_alias(&self) -> bool {
         self.try_acquire()
+    }
+
+    pub fn release(&self) {
+        unsafe {
+            self.inner.unlock();
+        }
     }
 
     pub fn locked(&self) -> bool {
@@ -72,8 +210,23 @@ impl Lock {
         self.locked()
     }
 
-    fn __enter__(slf: PyRef<'_, Self>) -> PyResult<PyRef<'_, Self>> {
-        slf.inner.lock();
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn guard<'py>(
+        slf: PyRef<'py, Self>,
+        py: Python<'py>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<Option<LockGuard>> {
+        if !lock_with_options(&slf.inner, py, blocking, timeout)? {
+            return Ok(None);
+        }
+        let ptr = NonNull::from(&slf.inner);
+        let owner = slf.into_pyobject(py)?.unbind().into_any();
+        Ok(Some(LockGuard::new(owner, ptr)))
+    }
+
+    fn __enter__<'py>(slf: PyRef<'py, Self>, py: Python<'py>) -> PyResult<PyRef<'py, Self>> {
+        slf.acquire(py, true, None)?;
         Ok(slf)
     }
 
@@ -83,32 +236,41 @@ impl Lock {
         _exc: &Bound<'_, PyAny>,
         _tb: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
-        unsafe {
-            self.inner.unlock();
-        }
+        self.release();
         Ok(false)
     }
 }
 
-#[pyclass(module = "syncx.locks")]
+#[pyclass(module = "syncx.locks", unsendable, freelist = 4096)]
 pub struct LockGuard {
-    guard: LockGuardState,
+    _owner: Py<PyAny>,
+    ptr: NonNull<RawMutex>,
+    held: bool,
 }
 
-enum LockGuardState {
-    Locked(Arc<RawMutex>),
-    Released,
+impl LockGuard {
+    fn new(owner: Py<PyAny>, ptr: NonNull<RawMutex>) -> Self {
+        Self {
+            _owner: owner,
+            ptr,
+            held: true,
+        }
+    }
+
+    fn unlock_raw(&mut self) {
+        if self.held {
+            unsafe {
+                self.ptr.as_ref().unlock();
+            }
+            self.held = false;
+        }
+    }
 }
 
 #[pymethods]
 impl LockGuard {
     pub fn release(&mut self) {
-        if let LockGuardState::Locked(mutex) = &self.guard {
-            unsafe {
-                mutex.unlock();
-            }
-            self.guard = LockGuardState::Released;
-        }
+        self.unlock_raw();
     }
 
     #[pyo3(name = "unlock")]
@@ -133,12 +295,7 @@ impl LockGuard {
 
 impl Drop for LockGuard {
     fn drop(&mut self) {
-        if let LockGuardState::Locked(mutex) = &self.guard {
-            unsafe {
-                mutex.unlock();
-            }
-            self.guard = LockGuardState::Released;
-        }
+        self.unlock_raw();
     }
 }
 
@@ -192,7 +349,7 @@ impl RLock {
     }
 }
 
-#[pyclass(module = "syncx.locks", unsendable)]
+#[pyclass(module = "syncx.locks", unsendable, freelist = 128)]
 pub struct RLockGuard {
     guard: Option<ReentrantMutexGuard<'static, ()>>,
     _lock: Arc<ReentrantMutex<()>>,
@@ -243,9 +400,8 @@ impl Drop for RLockGuard {
 }
 
 #[pyclass(module = "syncx.locks")]
-#[derive(Clone)]
 pub struct RWLock {
-    inner: Arc<RawRwLock>,
+    inner: RawRwLock,
 }
 
 #[pymethods]
@@ -253,61 +409,107 @@ impl RWLock {
     #[new]
     fn new() -> Self {
         Self {
-            inner: Arc::new(RawRwLock::INIT),
+            inner: RawRwLock::INIT,
         }
     }
 
-    pub fn acquire_read(&self) -> ReadGuard {
-        self.inner.lock_shared();
-        ReadGuard {
-            guard: GuardState::ReadLocked(Arc::clone(&self.inner)),
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn acquire_read(
+        &self,
+        py: Python<'_>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<bool> {
+        lock_shared_with_options(&self.inner, py, blocking, timeout)
+    }
+
+    #[pyo3(name = "read_lock", signature = (blocking=true, timeout=None))]
+    pub fn read_lock_alias(
+        &self,
+        py: Python<'_>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<bool> {
+        self.acquire_read(py, blocking, timeout)
+    }
+
+    pub fn read_release(&self) {
+        unsafe {
+            self.inner.unlock_shared();
         }
     }
 
-    #[pyo3(name = "read_lock")]
-    pub fn read_lock_alias(&self) -> ReadGuard {
-        self.acquire_read()
-    }
-
-    pub fn try_acquire_read(&self) -> Option<ReadGuard> {
-        if self.inner.try_lock_shared() {
-            Some(ReadGuard {
-                guard: GuardState::ReadLocked(Arc::clone(&self.inner)),
-            })
-        } else {
-            None
-        }
+    pub fn try_acquire_read(&self) -> bool {
+        self.inner.try_lock_shared()
     }
 
     #[pyo3(name = "try_read_lock")]
-    pub fn try_read_lock_alias(&self) -> Option<ReadGuard> {
+    pub fn try_read_lock_alias(&self) -> bool {
         self.try_acquire_read()
     }
 
-    pub fn acquire_write(&self) -> WriteGuard {
-        self.inner.lock_exclusive();
-        WriteGuard {
-            guard: WriteGuardState::WriteLocked(Arc::clone(&self.inner)),
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn read_guard<'py>(
+        slf: PyRef<'py, Self>,
+        py: Python<'py>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<Option<ReadGuard>> {
+        if !lock_shared_with_options(&slf.inner, py, blocking, timeout)? {
+            return Ok(None);
+        }
+        let ptr = NonNull::from(&slf.inner);
+        let owner = slf.into_pyobject(py)?.unbind().into_any();
+        Ok(Some(ReadGuard::new(owner, ptr)))
+    }
+
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn acquire_write(
+        &self,
+        py: Python<'_>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<bool> {
+        lock_exclusive_with_options(&self.inner, py, blocking, timeout)
+    }
+
+    #[pyo3(name = "write_lock", signature = (blocking=true, timeout=None))]
+    pub fn write_lock_alias(
+        &self,
+        py: Python<'_>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<bool> {
+        self.acquire_write(py, blocking, timeout)
+    }
+
+    pub fn write_release(&self) {
+        unsafe {
+            self.inner.unlock_exclusive();
         }
     }
 
-    #[pyo3(name = "write_lock")]
-    pub fn write_lock_alias(&self) -> WriteGuard {
-        self.acquire_write()
+    #[pyo3(signature = (blocking=true, timeout=None))]
+    pub fn write_guard<'py>(
+        slf: PyRef<'py, Self>,
+        py: Python<'py>,
+        blocking: bool,
+        timeout: Option<f64>,
+    ) -> PyResult<Option<WriteGuard>> {
+        if !lock_exclusive_with_options(&slf.inner, py, blocking, timeout)? {
+            return Ok(None);
+        }
+        let ptr = NonNull::from(&slf.inner);
+        let owner = slf.into_pyobject(py)?.unbind().into_any();
+        Ok(Some(WriteGuard::new(owner, ptr)))
     }
 
-    pub fn try_acquire_write(&self) -> Option<WriteGuard> {
-        if self.inner.try_lock_exclusive() {
-            Some(WriteGuard {
-                guard: WriteGuardState::WriteLocked(Arc::clone(&self.inner)),
-            })
-        } else {
-            None
-        }
+    pub fn try_acquire_write(&self) -> bool {
+        self.inner.try_lock_exclusive()
     }
 
     #[pyo3(name = "try_write_lock")]
-    pub fn try_write_lock_alias(&self) -> Option<WriteGuard> {
+    pub fn try_write_lock_alias(&self) -> bool {
         self.try_acquire_write()
     }
 
@@ -318,27 +520,56 @@ impl RWLock {
     pub fn is_write_locked(&self) -> bool {
         self.inner.is_locked_exclusive()
     }
+
+    pub fn write_release_fair(&self) {
+        unsafe {
+            self.inner.unlock_exclusive_fair();
+        }
+    }
+
+    pub fn bump_shared(&self) {
+        unsafe {
+            self.inner.bump_shared();
+        }
+    }
+
+    pub fn bump_exclusive(&self) {
+        unsafe {
+            self.inner.bump_exclusive();
+        }
+    }
 }
 
-#[pyclass(module = "syncx.locks")]
+#[pyclass(module = "syncx.locks", unsendable, freelist = 4096)]
 pub struct ReadGuard {
-    guard: GuardState,
+    _owner: Py<PyAny>,
+    ptr: NonNull<RawRwLock>,
+    held: bool,
 }
 
-enum GuardState {
-    ReadLocked(Arc<RawRwLock>),
-    Released,
+impl ReadGuard {
+    fn new(owner: Py<PyAny>, ptr: NonNull<RawRwLock>) -> Self {
+        Self {
+            _owner: owner,
+            ptr,
+            held: true,
+        }
+    }
+
+    fn unlock_raw(&mut self) {
+        if self.held {
+            unsafe {
+                self.ptr.as_ref().unlock_shared();
+            }
+            self.held = false;
+        }
+    }
 }
 
 #[pymethods]
 impl ReadGuard {
     pub fn release(&mut self) {
-        if let GuardState::ReadLocked(lock) = &self.guard {
-            unsafe {
-                lock.unlock_shared();
-            }
-            self.guard = GuardState::Released;
-        }
+        self.unlock_raw();
     }
 
     #[pyo3(name = "unlock")]
@@ -363,34 +594,49 @@ impl ReadGuard {
 
 impl Drop for ReadGuard {
     fn drop(&mut self) {
-        if let GuardState::ReadLocked(lock) = &self.guard {
-            unsafe {
-                lock.unlock_shared();
-            }
-            self.guard = GuardState::Released;
-        }
+        self.unlock_raw();
     }
 }
 
-#[pyclass(module = "syncx.locks")]
+#[pyclass(module = "syncx.locks", unsendable, freelist = 4096)]
 pub struct WriteGuard {
-    guard: WriteGuardState,
+    _owner: Py<PyAny>,
+    ptr: NonNull<RawRwLock>,
+    exclusive: bool,
 }
 
-enum WriteGuardState {
-    WriteLocked(Arc<RawRwLock>),
-    Released,
+impl WriteGuard {
+    fn new(owner: Py<PyAny>, ptr: NonNull<RawRwLock>) -> Self {
+        Self {
+            _owner: owner,
+            ptr,
+            exclusive: true,
+        }
+    }
+
+    fn unlock_raw(&mut self) {
+        if self.exclusive {
+            unsafe {
+                self.ptr.as_ref().unlock_exclusive();
+            }
+            self.exclusive = false;
+        }
+    }
+
+    fn unlock_raw_fair(&mut self) {
+        if self.exclusive {
+            unsafe {
+                self.ptr.as_ref().unlock_exclusive_fair();
+            }
+            self.exclusive = false;
+        }
+    }
 }
 
 #[pymethods]
 impl WriteGuard {
     pub fn release(&mut self) {
-        if let WriteGuardState::WriteLocked(lock) = &self.guard {
-            unsafe {
-                lock.unlock_exclusive();
-            }
-            self.guard = WriteGuardState::Released;
-        }
+        self.unlock_raw();
     }
 
     #[pyo3(name = "unlock")]
@@ -398,19 +644,25 @@ impl WriteGuard {
         self.release();
     }
 
-    pub fn downgrade(&mut self) -> Option<ReadGuard> {
-        match std::mem::replace(&mut self.guard, WriteGuardState::Released) {
-            WriteGuardState::WriteLocked(lock) => {
-                unsafe {
-                    lock.downgrade();
-                }
-                let read_arc = Arc::clone(&lock);
-                Some(ReadGuard {
-                    guard: GuardState::ReadLocked(read_arc),
-                })
-            }
-            WriteGuardState::Released => None,
+    pub fn release_fair(&mut self) {
+        self.unlock_raw_fair();
+    }
+
+    #[pyo3(name = "unlock_fair")]
+    pub fn unlock_fair_alias(&mut self) {
+        self.release_fair();
+    }
+
+    pub fn downgrade(&mut self, py: Python<'_>) -> Option<ReadGuard> {
+        if !self.exclusive {
+            return None;
         }
+        unsafe {
+            self.ptr.as_ref().downgrade();
+        }
+        self.exclusive = false;
+        let owner = self._owner.clone_ref(py);
+        Some(ReadGuard::new(owner, self.ptr))
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -430,11 +682,6 @@ impl WriteGuard {
 
 impl Drop for WriteGuard {
     fn drop(&mut self) {
-        if let WriteGuardState::WriteLocked(lock) = &self.guard {
-            unsafe {
-                lock.unlock_exclusive();
-            }
-            self.guard = WriteGuardState::Released;
-        }
+        self.unlock_raw();
     }
 }

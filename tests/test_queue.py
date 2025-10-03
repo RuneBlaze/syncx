@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from syncx.queue import Empty, Full, Queue
+from syncx.collections import Empty, Full, Queue
 
 
 def test_queue_round_trip_preserves_identity() -> None:

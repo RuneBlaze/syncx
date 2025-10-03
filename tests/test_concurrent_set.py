@@ -5,7 +5,7 @@ import pickle
 
 import pytest
 
-from syncx.set import ConcurrentSet
+from syncx.collections import ConcurrentSet
 
 
 def test_basic_membership_and_mutation() -> None:

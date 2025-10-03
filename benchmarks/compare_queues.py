@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 import queue as std_queue
 import statistics
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 try:
-    from syncx.queue import Queue as SyncxQueue
+    from syncx.collections import Queue as SyncxQueue
 except ImportError as exc:  # pragma: no cover - benchmark environment guard
     raise SystemExit(
-        "Failed to import syncx.queue.Queue. Build the extension via "
+        "Failed to import syncx.collections.Queue. Build the extension via "
         "`maturin develop --release` before running benchmarks."
     ) from exc
 
@@ -160,6 +162,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=0,
         help="Queue max size (0 means unbounded)",
     )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        help="Optional path to write benchmark results as JSON",
+    )
     return parser.parse_args(argv)
 
 
@@ -172,10 +179,24 @@ def main(argv: list[str]) -> int:
     )
     print("  pairs        implementation    throughput(Mops/s)   avg latency(us)")
 
+    all_results: list[BenchmarkResult] = []
     for pair_count in args.pairs:
         for target in targets:
             result = run_benchmark(target, pair_count, args.messages, args.maxsize)
+            all_results.append(result)
             print("  " + format_result(result))
+
+    if args.json:
+        payload = {
+            "benchmark": "queues",
+            "parameters": {
+                "pairs": args.pairs,
+                "messages": args.messages,
+                "maxsize": args.maxsize,
+            },
+            "results": [asdict(result) for result in all_results],
+        }
+        args.json.write_text(json.dumps(payload, indent=2))
     return 0
 
 

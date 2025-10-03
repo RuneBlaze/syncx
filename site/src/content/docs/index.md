@@ -1,12 +1,13 @@
-# syncx API Reference
+---
+title: syncx API Reference
+description: Rust-backed concurrency primitives for Python developers.
+---
 
-syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package now groups its surface into three submodules—`atomic`, `locks`, and `collections`—so you can pick the tool you need without hunting through helper packages.
+syncx exposes a compact set of Rust-backed concurrency primitives to Python. The package groups its surface into three submodules—`atomic`, `locks`, and `collections`—so you can pick the tool you need without hunting through helper packages.
 
-<div class="note">
-
-**Interpreter support.** Wheels target CPython 3.9–3.13. Build free-threaded (`3.13t`) wheels with `PYTHON_GIL=0 maturin build --release --no-default-features` when you have a free-threaded interpreter available.
-
-</div>
+:::note{title="Interpreter support"}
+Wheels target CPython 3.9–3.13. Build free-threaded (`3.13t`) wheels with `PYTHON_GIL=0 maturin build --release --no-default-features` when you have a free-threaded interpreter available.
+:::
 
 ## Installation
 
@@ -48,7 +49,7 @@ with mutex:
 
 ### `syncx.atomic`
 
-Sequentially consistent atomics that mirror the portable-atomic surface.
+Sequentially consistent atomics that mirror the `portable-atomic` surface.
 
 #### `AtomicInt`
 
@@ -59,11 +60,9 @@ Sequentially consistent atomics that mirror the portable-atomic surface.
 - `compare_exchange(current, new) -> tuple[bool, int]` – returns the swap result and prior value.
 - `update(callable) -> int` – retry loop around a Python function.
 
-<div class="warning">
-
-**Division safety.** `div` and in-place division raise `ZeroDivisionError` if the divisor is zero.
-
-</div>
+:::caution{title="Division safety"}
+`div` and in-place division raise `ZeroDivisionError` if the divisor is zero.
+:::
 
 #### `AtomicBool`
 
@@ -101,10 +100,10 @@ Wrappers around `parking_lot` primitives with Python-friendly naming.
 #### `Lock`
 
 - `Lock()` creates a standard mutex.
-- `acquire(blocking: bool = True, timeout: float | None = None) -> bool` follows `threading.Lock` semantics.
-- `try_acquire()` / `try_lock()` return `False` immediately when contended.
-- `release()` unlocks without creating a guard object.
-- `guard(blocking: bool = True, timeout: float | None = None) -> LockGuard | None` provides the optional RAII path.
+- `acquire(blocking: bool = True, timeout: float | None = None) -> bool` mirrors `threading.Lock`.
+- `try_acquire()` / `try_lock()` return `False` immediately when busy.
+- `release()` unlocks without allocating a guard.
+- `guard(blocking: bool = True, timeout: float | None = None) -> LockGuard | None` keeps the ergonomic RAII path.
 - `locked()` / `is_locked()` expose state.
 - Acts as a context manager (`with Lock(): ...`).
 
@@ -122,16 +121,15 @@ Wrappers around `parking_lot` primitives with Python-friendly naming.
 #### `RWLock`
 
 - `RWLock()` root read/write lock.
-- `acquire_read(blocking: bool = True, timeout: float | None = None) -> bool` and `read_release()` mirror the bool-based API.
-- `acquire_write(...) -> bool`, `write_release()`, and `write_release_fair()` manage exclusive owners.
-- `read_guard(...)` / `write_guard(...)` offer optional RAII wrappers that return `ReadGuard` / `WriteGuard`.
-- `bump_shared()` / `bump_exclusive()` provide fairness hints when readers or writers stall.
+- `acquire_read(...)-> bool` / `read_release()` cover the bool path, while `read_guard(...)` produces a scoped guard.
+- `acquire_write(...)-> bool`, `write_release()`, and `write_release_fair()` manage exclusive holders.
+- `bump_shared()` / `bump_exclusive()` provide fairness nudges when readers or writers pile up.
 - `is_locked()` / `is_write_locked()` expose state snapshots.
 
 #### `ReadGuard` & `WriteGuard`
 
 - `release()` / `unlock()` drop the underlying lock.
-- `WriteGuard.release_fair()` hands the lock to the next waiter.
+- `WriteGuard.release_fair()` hands the lock directly to the next waiter when desired.
 - `WriteGuard.downgrade() -> ReadGuard | None` moves from exclusive to shared ownership when still held.
 
 ### `syncx.collections`
@@ -146,11 +144,9 @@ Thread-safe collections backed by `flume`, `DashMap`, and `DashSet`.
 - `qsize()` / `empty()` / `full()` mirror `queue.Queue`.
 - `Empty` and `Full` exceptions are raised for non-blocking operations and timeouts.
 
-<div class="note">
-
-**Detaching from the GIL.** Blocking queue operations release the GIL while waiting so producers and consumers can progress concurrently.
-
-</div>
+:::note{title="Detaching from the GIL"}
+Blocking queue operations release the GIL while waiting so producers and consumers can progress concurrently.
+:::
 
 #### `ConcurrentDict`
 
@@ -179,16 +175,14 @@ DashSet-backed set for hashable Python values.
 - Cross-version test matrix: `nox --default-venv-backend uv`
 - Free-threaded session: `nox --default-venv-backend uv -s tests-free-threaded`
 
-<div class="warning">
-
-**Testing guidance.** Avoid busy-wait loops in new tests; prefer bounded thread pools and timeouts so suites remain stable under `pytest -n auto` and on CI runners.
-
-</div>
+:::caution{title="Testing guidance"}
+Avoid busy-wait loops in new tests; prefer bounded thread pools and timeouts so suites remain stable under `pytest -n auto` and on CI runners.
+:::
 
 ## Further reading
 
-- Repository: [https://github.com/RuneBlaze/syncx](https://github.com/RuneBlaze/syncx)
-- Issue tracker: [https://github.com/RuneBlaze/syncx/issues](https://github.com/RuneBlaze/syncx/issues)
+- Repository: <https://github.com/RuneBlaze/syncx>
+- Issue tracker: <https://github.com/RuneBlaze/syncx/issues>
 - Vendored PyO3 notes: `vibes/pyo3-guide`
 
 Contributions are welcome—open an issue or PR if you spot gaps or want to expand the primitive set.

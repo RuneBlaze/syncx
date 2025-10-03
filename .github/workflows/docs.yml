@@ -11,37 +11,24 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: "docs-pages"
-  cancel-in-progress: true
-
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare output directory
-        run: mkdir -p site
-      - name: Convert DOCS.md to HTML
-        uses: docker://pandoc/core:3.5
-        with:
-          args: >-
-            DOCS.md
-            --standalone
-            --metadata=title:"syncx Documentation"
-            --output=site/index.html
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Install, build, and upload site
+        uses: withastro/action@v4
         with:
           path: site
+          package-manager: pnpm@10
 
   deploy:
-    runs-on: ubuntu-22.04
     needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deploy
+        id: deployment
         uses: actions/deploy-pages@v4

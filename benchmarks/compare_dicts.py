@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 import random
 import statistics
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 try:
-    from syncx.dict import ConcurrentDict
+    from syncx.collections import ConcurrentDict
 except ImportError as exc:  # pragma: no cover - benchmark environment guard
     raise SystemExit(
-        "Failed to import syncx.dict.ConcurrentDict. Build the extension via "
+        "Failed to import syncx.collections.ConcurrentDict. Build the extension via "
         "`maturin develop --release` before running benchmarks."
     ) from exc
 
@@ -177,6 +179,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=1812,
         help="Base RNG seed used to generate workloads",
     )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        help="Optional path to write benchmark results as JSON",
+    )
     return parser.parse_args(argv)
 
 
@@ -192,6 +199,8 @@ def main(argv: list[str]) -> int:
         "Running benchmarks with "
         f"{args.operations} ops/thread, key-space {args.key_space}, threads {args.threads}"
     )
+
+    all_results: list[tuple[str, float, BenchmarkResult]] = []
 
     for scenario_name, read_ratio in scenarios:
         write_ratio = 1.0 - read_ratio
@@ -210,7 +219,30 @@ def main(argv: list[str]) -> int:
                     args.key_space,
                     args.seed,
                 )
+                all_results.append((scenario_name, read_ratio, result))
                 print("  " + format_result(result))
+
+    if args.json:
+        payload = {
+            "benchmark": "dicts",
+            "parameters": {
+                "threads": args.threads,
+                "operations": args.operations,
+                "key_space": args.key_space,
+                "read_heavy_ratio": args.read_heavy_ratio,
+                "write_heavy_ratio": args.write_heavy_ratio,
+                "seed": args.seed,
+            },
+            "results": [
+                {
+                    "scenario": scenario_name,
+                    "read_ratio": read_ratio,
+                    **asdict(result),
+                }
+                for scenario_name, read_ratio, result in all_results
+            ],
+        }
+        args.json.write_text(json.dumps(payload, indent=2))
     return 0
 
 

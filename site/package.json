@@ -1,0 +1,17 @@
+{
+  "name": "syncx-docs",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "dev": "astro dev --base /syncx/",
+    "start": "astro dev --base /syncx/",
+    "build": "astro build",
+    "preview": "astro preview --base /syncx/"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.36.0",
+    "astro": "^5.14.1"
+  }
+}
