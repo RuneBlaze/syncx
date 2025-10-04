@@ -20,7 +20,7 @@ jobs:
         uses: withastro/action@v4
         with:
           path: site
-          package-manager: pnpm
+          package-manager: pnpm@10.11.0
 
   deploy:
     needs: build

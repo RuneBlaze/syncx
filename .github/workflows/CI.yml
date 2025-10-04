@@ -17,7 +17,9 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - uses: dtolnay/rust-toolchain@stable
       - name: Run Nox sessions
-        run: uv tool run nox -- --default-venv-backend uv
+        env:
+          NOX_DEFAULT_VENV_BACKEND: uv
+        run: uv tool run nox
 
   linux-gil:
     runs-on: ubuntu-latest
@@ -166,7 +168,7 @@ jobs:
       - name: Build free-threaded wheels
         shell: pwsh
         run: |
-          python -X gil=0 -m maturin build --release --no-default-features -o dist --find-interpreter
+          python -X gil=0 -m maturin build --release --no-default-features -o dist
       - name: Run CI benchmarks
         shell: pwsh
         run: python benchmarks/run_ci_suite.py --output benchmarks-windows-free-threaded.json
